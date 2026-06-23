@@ -34,6 +34,9 @@ server:
   port: 8104
   servlet:
     context-path: /api/judge
+    session:
+      cookie:
+        path: "/api"
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: false

@@ -34,6 +34,9 @@ server:
   port: 8102
   servlet:
     context-path: /api/user
+    session:
+      cookie:
+        path: "/api"
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: false
