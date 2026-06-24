@@ -26,6 +26,11 @@ spring:
     host: 192.168.40.135
     #    host: localhost
     database: 0
+  rabbitmq:
+    host: 192.168.40.135
+    port: 5672
+    username: admin
+    password: admin
   cloud:
     nacos:
       discovery:

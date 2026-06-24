@@ -20,6 +20,7 @@ import com.sug.sugojbackendcommon.common.ErrorCode;
 import com.sug.sugojbackendcommon.common.ResultUtils;
 import com.sug.sugojbackendcommon.constant.CommonConstant;
 import com.sug.sugojbackendcommon.exception.BusinessException;
+import com.sug.sugojbackendquestionservice.rabbitmq.MyMessageProducer;
 import com.sug.sugojbackendquestionservice.service.QuestionService;
 import com.sug.sugojbackendquestionservice.service.QuestionSubmitService;
 import com.sug.sugojbackendserviceclient.service.JudgeFeignClient;
@@ -53,6 +54,12 @@ public class QuestionController {
 
     @Resource
     private QuestionSubmitService questionSubmitService;
+
+    @Resource
+    private JudgeFeignClient judgeFeignClient;
+
+    @Resource
+    private MyMessageProducer myMessageProducer;
 
 
     // region 增删改查
@@ -285,8 +292,7 @@ public class QuestionController {
     // endregion
 
 
-    @Resource
-    private JudgeFeignClient judgeFeignClient;
+
     /**
      * 创建
      *
@@ -313,11 +319,12 @@ public class QuestionController {
         }
         Long questionId = questionSubmitAddRequest.getQuestionId();
         questionService.incrementSubmitNum(questionId);
-        long newQuestionSubmitId = questionSubmit.getId();
-        CompletableFuture.runAsync(()->{
-            judgeFeignClient.doJudge(newQuestionSubmitId);
-        });
-        return ResultUtils.success(newQuestionSubmitId);
+        String newQuestionSubmitId = questionSubmit.getId().toString();
+        myMessageProducer.sendMessage("code_exchange","my_routingKey",newQuestionSubmitId);
+//        CompletableFuture.runAsync(()->{
+//            judgeFeignClient.doJudge(newQuestionSubmitId);
+//        });
+        return ResultUtils.success(Long.parseLong(newQuestionSubmitId));
     }
 
     /**
