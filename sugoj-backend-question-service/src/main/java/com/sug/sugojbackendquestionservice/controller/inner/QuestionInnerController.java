@@ -39,4 +39,12 @@ public class QuestionInnerController implements QuestionFeignClient {
     public boolean updateQuestionSubmitById(@RequestBody QuestionSubmit questionSubmit) {
         return questionSubmitService.updateById(questionSubmit);
     }
+
+    @Override
+    @PostMapping("question_submit/update/status/cas")
+    public boolean updateQuestionSubmitStatusCas(@RequestParam("id") Long id,
+                                                  @RequestParam("expectedStatus") Integer expectedStatus,
+                                                  @RequestParam("newStatus") Integer newStatus) {
+        return questionSubmitService.updateStatusCas(id, expectedStatus, newStatus);
+    }
 }

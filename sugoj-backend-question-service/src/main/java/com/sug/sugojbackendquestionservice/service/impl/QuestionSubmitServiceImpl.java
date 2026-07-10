@@ -60,6 +60,11 @@ public class QuestionSubmitServiceImpl extends ServiceImpl<QuestionSubmitMapper,
     }
 
     @Override
+    public boolean updateStatusCas(Long id, Integer expectedStatus, Integer newStatus) {
+        return baseMapper.updateStatusCas(id, expectedStatus, newStatus) > 0;
+    }
+
+    @Override
     public void validQuestionSubmit(QuestionSubmit questionSubmit, boolean isadd) {
         if (questionSubmit == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求参数为空");

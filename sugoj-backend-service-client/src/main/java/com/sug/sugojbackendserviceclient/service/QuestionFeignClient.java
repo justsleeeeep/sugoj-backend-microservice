@@ -33,4 +33,13 @@ public interface QuestionFeignClient {
 
     @PostMapping("question_submit/update/id")
     boolean updateQuestionSubmitById(@RequestBody QuestionSubmit questionSubmit);
+
+    /**
+     * CAS 原子更新提交状态（乐观锁）
+     * 只有当前 status == expectedStatus 时才更新为 newStatus
+     */
+    @PostMapping("question_submit/update/status/cas")
+    boolean updateQuestionSubmitStatusCas(@RequestParam("id") Long id,
+                                          @RequestParam("expectedStatus") Integer expectedStatus,
+                                          @RequestParam("newStatus") Integer newStatus);
 }

@@ -44,19 +44,14 @@ public class JudgeServiceImpl implements JudgeService {
         Long questionid=questionSubmit.getQuestionId();
         Question question=questionFeignClient.getQuestionById(questionid);
         if(question==null) throw new BusinessException(ErrorCode.NOT_FOUND_ERROR,"题目不存在");
-        if(questionSubmit.getStatus().equals( QuestionSubmitStatusEnum.RUNNING.getValue()))
-        {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR,"题目正在判题");
-        }
 
-
-        QuestionSubmit questionSubmitUpdateStatus= new QuestionSubmit();
-        questionSubmitUpdateStatus.setId(questionSubmitId);
-        questionSubmitUpdateStatus.setStatus(QuestionSubmitStatusEnum.RUNNING.getValue());
-        boolean updateStatus=questionFeignClient.updateQuestionSubmitById(questionSubmitUpdateStatus);
-        if(!updateStatus)
-        {
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR,"题目提交状态更新失败");
+        // CAS 原子抢占：只有 status == WAITING 时才更新为 RUNNING
+        boolean grabbed = questionFeignClient.updateQuestionSubmitStatusCas(
+                questionSubmitId,
+                QuestionSubmitStatusEnum.WAITING.getValue(),
+                QuestionSubmitStatusEnum.RUNNING.getValue());
+        if (!grabbed) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "题目正在判题");
         }
 
 

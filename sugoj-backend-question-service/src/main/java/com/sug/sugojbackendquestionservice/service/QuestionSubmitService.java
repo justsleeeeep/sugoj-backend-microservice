@@ -29,4 +29,10 @@ public interface QuestionSubmitService extends IService<QuestionSubmit> {
      */
     QueryWrapper<QuestionSubmit> getQueryWrapper(QuestionSubmitQueryRequest questionSubmitQueryRequest);
 
+    /**
+     * CAS 原子更新提交状态
+     * @return true=抢锁成功，false=已被抢占
+     */
+    boolean updateStatusCas(Long id, Integer expectedStatus, Integer newStatus);
+
 }
