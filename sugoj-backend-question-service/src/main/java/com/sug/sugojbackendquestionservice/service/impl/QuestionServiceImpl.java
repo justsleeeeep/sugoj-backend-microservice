@@ -9,6 +9,7 @@ import com.sug.sugojbackendcommon.exception.BusinessException;
 import com.sug.sugojbackendquestionservice.mapper.QuestionMapper;
 import com.sug.sugojbackendquestionservice.service.QuestionService;
 import org.apache.commons.lang3.StringUtils;
+import com.google.common.hash.BloomFilter;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -28,6 +29,9 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question>
 
     @Resource
     private RedisTemplate<String, Object> redisTemplate;
+
+    @Resource
+    private BloomFilter<Long> bloomFilter;
 
     private static final String HOT_QUESTION_KEY = "hot:questions";
 
@@ -83,6 +87,10 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question>
      */
     @Cacheable(value = "question", key = "#id", unless = "#result == null")
     public Question getQuestionById(Long id) {
+        // 布隆过滤器：绝对不存在 → 直接返回 null，不查 MySQL
+        if (!bloomFilter.mightContain(id)) {
+            return null;
+        }
         return super.getById(id);
     }
 
@@ -92,6 +100,13 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question>
     @CacheEvict(value = "question", key = "#id")
     public void evictCache(Long id) {
         // 空方法，注解自动清除 Redis 中的 "question::<id>"
+    }
+
+    /**
+     * 新增题目时把 ID 加入布隆过滤器
+     */
+    public void addToBloomFilter(Long id) {
+        bloomFilter.put(id);
     }
 
     // ======================== 热门题目排行（ZSet）========================

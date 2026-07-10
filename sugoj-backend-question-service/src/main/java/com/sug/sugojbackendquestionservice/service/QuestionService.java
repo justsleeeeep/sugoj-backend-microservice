@@ -38,4 +38,7 @@ public interface QuestionService extends IService<Question> {
     /** 获取热门题目 ID Top N */
     java.util.List<Long> getHotQuestionIds(int topN);
 
+    /** 新增题目时把 ID 加入布隆过滤器 */
+    void addToBloomFilter(Long id);
+
 }

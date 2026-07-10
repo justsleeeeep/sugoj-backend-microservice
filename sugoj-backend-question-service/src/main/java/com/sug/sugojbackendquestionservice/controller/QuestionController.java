@@ -102,6 +102,7 @@ public class QuestionController {
             throw new BusinessException(ErrorCode.OPERATION_ERROR);
         }
         long newQuestionId = question.getId();
+        questionService.addToBloomFilter(newQuestionId);  // 新题目 ID 加入布隆过滤器
         questionService.evictCache(newQuestionId);  // 清除缓存
         return ResultUtils.success(newQuestionId);
     }
