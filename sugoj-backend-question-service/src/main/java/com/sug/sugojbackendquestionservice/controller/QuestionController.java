@@ -28,10 +28,12 @@ import com.sug.sugojbackendserviceclient.service.UserFeignClient;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -61,6 +63,9 @@ public class QuestionController {
     @Resource
     private MyMessageProducer myMessageProducer;
 
+    @Resource
+    private RedisTemplate redisTemplate;
+
 
     // region 增删改查
 
@@ -88,7 +93,7 @@ public class QuestionController {
             question.setJudgeConfig(JSONUtil.toJsonStr(questionAddRequest.getJudgeConfig()));
         }
         // 校验
-        System.out.println("👉 拷贝并转换后的 question 对象: " + question);
+        System.out.println("拷贝并转换后的 question 对象: " + question);
         questionService.validQuestion(question, true);
         User loginUser = userFeignClient.getLoginUser(request);
         question.setUserId(loginUser.getId());
@@ -97,6 +102,7 @@ public class QuestionController {
             throw new BusinessException(ErrorCode.OPERATION_ERROR);
         }
         long newQuestionId = question.getId();
+        questionService.evictCache(newQuestionId);  // 清除缓存
         return ResultUtils.success(newQuestionId);
     }
 
@@ -124,6 +130,7 @@ public class QuestionController {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
         }
         boolean b = questionService.removeById(id);
+        questionService.evictCache(id);  // 清除缓存
         return ResultUtils.success(b);
     }
 
@@ -165,6 +172,7 @@ public class QuestionController {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
         }
         boolean result = questionService.updateById(question);
+        questionService.evictCache(id);  // 清除缓存
         return ResultUtils.success(result);
     }
 
@@ -179,7 +187,14 @@ public class QuestionController {
         if (id <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        Question question = questionService.getById(id);
+        Question question = questionService.getQuestionById(id);  // 走缓存
+        redisTemplate.expire("question::" + id, Duration.ofMinutes(10));
+        if (question == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "题目不存在");
+        }
+        // 热度+1（Redis ZSet）
+        questionService.incrementHotScore(id);
+
         QuestionVO questionVO = new QuestionVO();
         BeanUtils.copyProperties(question, questionVO);
         if (question.getTags() != null) {
@@ -347,6 +362,35 @@ public class QuestionController {
                 new Page<>(current, size),
                 questionSubmitService.getQueryWrapper(questionSubmitQueryRequest));
         return ResultUtils.success(questionSubmitPage);
+    }
+
+    // ======================== 热门题目 ========================
+
+    /**
+     * 获取热门题目 Top N（基于访问量）
+     * 示例：GET /hot?topN=5
+     */
+    @GetMapping("/hot")
+    public BaseResponse<List<QuestionVO>> getHotQuestion(
+            @RequestParam(defaultValue = "5") int topN) {
+        if (topN <= 0 || topN > 20) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "topN 需在 1-20 之间");
+        }
+        // 1. 从 Redis ZSet 取热门题目 ID
+        List<Long> hotIds = questionService.getHotQuestionIds(topN);
+        // 2. 按顺序查出题目详情（缓存命中，不查 MySQL）
+        List<QuestionVO> result = hotIds.stream().map(id -> {
+            Question q = questionService.getQuestionById(id);  // 走缓存
+            if (q == null) return null;
+            QuestionVO vo = new QuestionVO();
+            BeanUtils.copyProperties(q, vo);
+            if (q.getTags() != null) {
+                vo.setTags(JSONUtil.toList(q.getTags(), String.class));
+            }
+            return vo;
+        }).filter(q -> q != null).collect(Collectors.toList());
+
+        return ResultUtils.success(result);
     }
 
 }

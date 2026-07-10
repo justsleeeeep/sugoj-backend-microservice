@@ -10,6 +10,9 @@ import com.sug.sugbackendmodel.model.entity.Question;
 */
 public interface QuestionService extends IService<Question> {
 
+    /** 带缓存的单题查询 */
+    Question getQuestionById(Long id);
+
     /**
      * 问题校验
      *
@@ -25,5 +28,14 @@ public interface QuestionService extends IService<Question> {
      * @return
      */
     void incrementSubmitNum(Long questionId);
+
+    /** 清除题目缓存（写操作后调用） */
+    void evictCache(Long id);
+
+    /** 访问题目时热度+1 */
+    void incrementHotScore(Long questionId);
+
+    /** 获取热门题目 ID Top N */
+    java.util.List<Long> getHotQuestionIds(int topN);
 
 }
